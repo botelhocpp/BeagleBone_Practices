@@ -13,8 +13,8 @@ all: app
 app: start.o main.o drivers.o gpio.o system.o uart.o
 	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)drivers.o $(OBJ)gpio.o $(OBJ)system.o $(OBJ)uart.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
 	$(CHAIN)-objcopy $(OBJ)main.elf $(BIN)spl.boot -O binary
-	cp $(BIN)spl.boot /tftpboot/appTimer.bin
-	ln -s $(TFTP)appTimer.bin $(TFTP)app
+	cp $(BIN)spl.boot /tftpboot/appInterrupt.bin
+	ln -s $(TFTP)appInterrupt.bin $(TFTP)app
 
 start.o: $(SRC)start.s
 	$(CHAIN)-as $(AFLAGS) $(SRC)start.s -o $(OBJ)start.o
@@ -35,13 +35,13 @@ drivers.o: $(SRC)drivers.c
 	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)drivers.c -o $(OBJ)drivers.o
                                         
 copy:
-	cp $(BIN)spl.boot /tftpboot/appTimer.bin
+	cp $(BIN)spl.boot /tftpboot/appInterrupt.bin
 
 clean:
 	rm -rf $(OBJ)*.o
 	rm -rf $(OBJ)*.elf
 	rm -rf $(BIN)*.boot
-	rm -rf $(TFTP)appTimer.bin
+	rm -rf $(TFTP)appInterrupt.bin
 	rm -rf $(TFTP)app
 
 dump:
