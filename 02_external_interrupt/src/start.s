@@ -62,6 +62,7 @@ _start:
 .loop:    b .loop 
 
 
+/* IRQ ISR */
 .irq_handler:
         stmfd sp!, {r0-r12, lr}
         MRS r11, spsr

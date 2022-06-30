@@ -1,3 +1,13 @@
+/**
+ * @file bbb_regs.h
+ * @author Francisco Helder (helderhdw@gmail.com)
+ * @brief Beaglenone Black configuration registers.
+ * @version 1.0
+ * @date 2022-06-30
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef _BBB_REGS_H_
 #define _BBB_REGS_H_
 

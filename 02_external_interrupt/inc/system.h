@@ -1,3 +1,13 @@
+/**
+ * @file system.h
+ * @author Pedro Botelho (pedrobotelho15@alu.ufc.br)
+ * @brief Configuration functions of the system.
+ * @version 1.0
+ * @date 2022-06-30
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef SYSTEM_H
 #define SYSTEM_H
 

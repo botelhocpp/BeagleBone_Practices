@@ -1,24 +1,15 @@
+/**
+ * @file hw_types.h
+ * @author Francisco Helder (helderhdw@gmail.com)
+ * @brief Macros for hardware access.
+ * @version 0.1
+ * @date 2022-06-30
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef _HW_TYPES_H_
 #define _HW_TYPES_H_
-
-/*
- * =====================================================================================
- *
- *       Filename:  hw_type.h
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  23/05/2018 17:47:17
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  Francisco Helder (FHC), helderhdw@gmail.com
- *   Organization:  UFC-Quixadá
- *
- * =====================================================================================
- */
-
 
 //*****************************************************************************
 //
@@ -30,7 +21,7 @@ typedef unsigned char tBoolean;
 typedef enum{
    true = 1,
    false = 0
-}bool;
+} bool;
 
 #ifndef NULL
 #define NULL ((void*) 0)
@@ -58,4 +49,4 @@ typedef enum{
                (((unsigned int)(x) & 0x000FFFFF) << 5) | ((b) << 2))
 
 
-#endif // __HW_TYPES_H__
+#endif

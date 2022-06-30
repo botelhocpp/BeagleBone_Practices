@@ -1,3 +1,13 @@
+/**
+ * @file uart.c
+ * @author Francisco Helder (helderhdw@gmail.com)
+ * @brief Serial interface access functions.
+ * @version 1.0
+ * @date 2022-06-30
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "uart.h"
 
 #include "bbb_regs.h"

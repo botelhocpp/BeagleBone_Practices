@@ -1,6 +1,5 @@
 #include "system.h"
 #include "drivers.h"
-#include "uart.h"
 
 #include "bbb_regs.h"
 #include "hw_types.h"
@@ -29,12 +28,10 @@ void delay_ms(unsigned int ms) {
 }
 
 void irqHandler(void){
-
-	putString("IRQ HANDLER!\r\n", 15);
-
-	/* Verify active IRQ number */
+	/* Obtain the current interrupt number */
 	unsigned int irq_number = HWREG(INTC_SIR_IRQ) & 0x7F;
 	
+	// Base in IRQ number call a specific ISR
 	if(irq_number == 32) {
 		irqHandlerGpio2A();
 	}
@@ -48,14 +45,16 @@ void irqHandler(void){
 		irqHandlerGpio1B();
 	}
 
-	/* acknowledge IRQ */
+	/* Acknowledge IRQ and enable new IRQ generation */
 	HWREG(INTC_CONTROL) |= (1U << 0);
 }
 
 void irqHandlerGpio1A(void) {
+	// Checks if the generated IRQ came from the button 01
 	if(HWREG(GPIO1_IRQSTATUS_0) & BUTTON_01_MASK) {
 		/* Clear the status of the interrupt flags */
 		HWREG(GPIO1_IRQSTATUS_0) = BUTTON_01_MASK; 
+		// Change the blink sequence.
 		setBlinkMode(1);
 	}
 }
@@ -96,6 +95,6 @@ void intConfig() {
 	/* Enable interface clock autogating. */
 	HWREG(INTC_SYSCONFIG) |= (1U << 0);
 
-	/* Enable interface clock autogating. */
+	/* Enable auto-idle mode for the Functional clock. */
 	HWREG(INTC_IDLE) |= (1U << 1) | (1U << 0);
 }

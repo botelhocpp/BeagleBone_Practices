@@ -7,11 +7,11 @@
 static int blink_mode;
 
 void buttonConfig(void) {
-	/* Configure GPIO1 interrupt groups. */
+	/* Configure GPIO1 interrupt groups: Pin 12 to group A and pin 1 to group B. */
 	HWREG(GPIO1_IRQSTATUS_SET_0) |= BUTTON_01_MASK; 
 	HWREG(GPIO1_IRQSTATUS_SET_1) |= BUTTON_02_MASK;
 
-	/* Configure GPIO2 interrupt group. */
+	/* Configure GPIO2 interrupt group. Pin 1 to group A. */
 	HWREG(GPIO2_IRQSTATUS_SET_0) |= BUTTON_03_MASK; 
 
   	/* Enable interrupt generation on detection of a rising edge.*/
@@ -38,6 +38,7 @@ void ledConfig(void) {
     HWREG(CM_PER_GPMCA7_REGS) |= (0b111U << 0);
     HWREG(CM_PER_GPMCA8_REGS) |= (0b111U << 0);
 
+    	/* Configure the Led Pins for Output */
     HWREG(GPIO1_OE) &= ~LED_01_MASK & ~LED_02_MASK & ~LED_03_MASK & ~LED_04_MASK;
 
     ledOff(LED_01);
