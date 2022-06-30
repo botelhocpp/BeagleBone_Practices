@@ -1,0 +1,9 @@
+{
+     "files.associations": {
+          "uart.h": "c",
+          "hw_types.h": "c",
+          "bbb_regs.h": "c",
+          "gpio.h": "c",
+          "system.h": "c"
+     }
+}
