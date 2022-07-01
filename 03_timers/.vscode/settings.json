@@ -1,8 +1,0 @@
-{
-     "files.associations": {
-          "bbb_regs.h": "c",
-          "timers.h": "c",
-          "drivers.h": "c",
-          "stdint.h": "c"
-     }
-}
