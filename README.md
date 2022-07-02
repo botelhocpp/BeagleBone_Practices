@@ -38,4 +38,4 @@ All the practices and projects made in the course will be available in the repos
 ### Team
 
 - Developer: Pedro M. Botelho
-- Advisor: Prof. Dr. Thiago W. Bandeira
+- Advisor: Prof. Dr.  Francisco Helder Candido
