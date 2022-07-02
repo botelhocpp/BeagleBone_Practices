@@ -22,10 +22,10 @@ All the practices and projects made in the course will be available in the repos
 1) Basic Configuration of General Purpose I/O (GPIO), with LEDs (output) and buttons (input).
 2) Configuration and Handling of External Interruptions.(IRQ).
 - Selection of the flashing sequence of the internal LEDs, by means of a button, configured to send a IRQ do CPU.
-- <a href="https://www.youtube.com/watch?v=AKgDbaAUTqY&t=25s">IRQ Practice Video on YouTube (in Portuguese) </a>
+- <a href="https://www.youtube.com/watch?v=AKgDbaAUTqY&t=25s">IRQ Practice Video on YouTube (in Portuguese) </a>.
 3) Counting Time with Timers (DMTIMER) configured for IRQ generation on overflow.
 - Menu (on the serial monitor) for selecting a flashing time of one 8 LEDs, by the use of two buttons (with IRQ).
-- <a href="https://www.youtube.com/watch?v=jdHQ_jgo2IM">Timers Practice Video on YouTube (in Portuguese) </a>
+- <a href="https://www.youtube.com/watch?v=jdHQ_jgo2IM">Timers Practice Video on YouTube (in Portuguese) </a>.
 4) ~~Digital calculator system, with LCD display and matrix keyboard.~~
 
 ### Technologies
