@@ -27,7 +27,7 @@ All the practices and projects made in the course will be available in the repos
 - Menu (on the serial monitor) for selecting a flashing time of one 8 LEDs, by the use of two buttons (with IRQ).
 - <a href="https://www.youtube.com/watch?v=jdHQ_jgo2IM">Timers Practice Video on YouTube (in Portuguese) </a>.
 4) Configuration of GPIO for Buttons and LEDs using modularized functions.
-4) ~~Configuration and Handling External Interruptions using modularized functions~~.
+4) Configuration and Handling External Interruptions using modularized functions.
 6) ~~Counting Time with Timers using modularized functions~~.
 7) ~~Getting data from a Matrix Keyboard using External Interrupts~~.
 8) ~~Using a Liquid Crystal Display (LCD) with GPIO and modularized functions~~.
