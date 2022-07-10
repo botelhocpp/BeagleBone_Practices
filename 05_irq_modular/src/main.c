@@ -53,7 +53,12 @@ int main(void){
      IntMasterIRQEnable();
 
      /* Block the CPU here */
-     while(1);
+     while(1) {
+          gpioTogglePinValue(&led04);
+          for(int i = 0; i < 500; i++) {
+               for(int j = 0; j < 300000; j++);
+          }
+     }
 }
 
 // =============================================================================
@@ -68,9 +73,8 @@ void irqHandlerGpio1A(void) {
           gpioTogglePinValue(&led01);
           gpioTogglePinValue(&led02);
           gpioTogglePinValue(&led03);
-          gpioTogglePinValue(&led04);
 
-		/* Clear the pending status of the interrupt flags */
+          /* Clear the pending status of the interrupt flags */
           gpioClearIntFlag(&btn, GPIO_INTC_LINE_1);
 	}
 }

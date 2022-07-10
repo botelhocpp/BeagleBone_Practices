@@ -1,3 +1,5 @@
+# setenv appKeyboard.bin "setenv autoload no;setenv ipaddr 10.4.1.2; setenv serverip 10.4.1.1; tftp 0x80000000 /tftpboot/app;echo ***Booting to BareMetal ***;go 0x80000000"
+
 CHAIN=$(CHAINPATH)arm-none-eabi
 CFLAGS=-std=c99 -Wall -mfpu=neon -mhard-float -mcpu=cortex-a8
 AFLAGS=-mfpu=neon
@@ -9,11 +11,11 @@ TFTP=/tftpboot/
 
 all: clean app
 
-app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o timer.o
-	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)timer.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
+app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o cpu.o drivers.o
+	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)cpu.o $(OBJ)drivers.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
 	$(CHAIN)-objcopy $(OBJ)main.elf $(BIN)spl.boot -O binary
-	cp $(BIN)spl.boot $(TFTP)appGpio.bin
-	ln -s $(TFTP)appGpio.bin $(TFTP)app
+	cp $(BIN)spl.boot $(TFTP)appKeyboard.bin
+	ln -s $(TFTP)appKeyboard.bin $(TFTP)app
 
 start.o: $(SRC)start.s
 	$(CHAIN)-as $(AFLAGS) $(SRC)start.s -o $(OBJ)start.o
@@ -39,18 +41,21 @@ interrupt.o: $(SRC)interrupt.c
 uart.o: $(SRC)uart.c
 	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)uart.c -o $(OBJ)uart.o
 
-timer.o: $(SRC)timer.c
-	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)timer.c -o $(OBJ)timer.o
+cpu.o: $(SRC)cpu.c
+	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)cpu.c -o $(OBJ)cpu.o
+                                        
+drivers.o: $(SRC)drivers.c                          
+	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)drivers.c -o $(OBJ)drivers.o
 
 copy:
-	cp $(BIN)spl.boot $(TFTP)/appGpio.bin
+	cp $(BIN)spl.boot /tftpboot/appKeyboard.bin
 
 clean:
 	rm -rf $(OBJ)*.o
 	rm -rf $(OBJ)*.elf
 	rm -rf $(BIN)*.boot
+	rm -rf $(TFTP)appKeyboard.bin
 	rm -rf $(TFTP)app
-	rm -rf $(TFTP)appGpio.bin
 
 dump:
 	$(CHAIN)-objdump -D $(OBJ)main.elf

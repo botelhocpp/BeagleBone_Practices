@@ -1,0 +1,6 @@
+{
+     "files.associations": {
+          "soc_am335x.h": "c",
+          "stdint.h": "c"
+     }
+}

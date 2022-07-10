@@ -11,6 +11,7 @@
  * 
  */
 #include "gpio.h"
+#include "interrupt.h"
 
 // =============================================================================
 // PRIVATE VARIABLES
@@ -63,7 +64,7 @@ bool gpioCheckValidPortPin(gpio_port port, uint8_t pin);
 
 bool gpioCheckValidPort(gpio_port port);
 
-bool gpioCheckValidPinNumber(uint8_t pin);
+bool gpioCheckValidpin_number(uint8_t pin);
 
 bool gpioCheckValidDirection(pin_direction direction);
 
@@ -148,6 +149,14 @@ void gpioSetPinValue(gpio_handle_t *pin, pin_level level) {
 	HWREG(gpio_base + GPIO_DATAOUT) |= (level << pin->pin_number);
 }
 
+void gpioTogglePinValue(gpio_handle_t *pin) {
+	if(!gpioCheckValidPin(pin)) {
+		return;
+	} 
+	uint32_t gpio_base = gpioGetPort(pin->port);
+	HWREG(gpio_base + GPIO_DATAOUT) ^= (1U << pin->pin_number);
+}
+
 pin_level gpioGetPinValue(gpio_handle_t *pin) {
 	if(!gpioCheckValidPin(pin)) {
 		return -1;
@@ -156,23 +165,34 @@ pin_level gpioGetPinValue(gpio_handle_t *pin) {
 	return (HWREG(gpio_base + GPIO_DATAIN) >> pin->pin_number) & 1;
 }
 
+void gpioConfigPull(gpio_handle_t *pin, pin_pull pull_type) {
+	if(!gpioCheckValidPin(pin) || pull_type > 1 || pull_type < 0) {
+		return;
+	}
+	CONTROL_MODULE module_offset = GPIO_CTRL_MODULE_ARRAY[pin->pin_number][pin->port]; 
+    uint32_t pin_module = cmGetCtrlModule(module_offset);
+    pin_module &= ~(1U << 3) & ~(1U << 4);
+    pin_module |= (pull_type << 4);
+    cmSetCtrlModule(module_offset, pin_module);
+}
+
 // =============================================================================
 // PRIVATE FUNCTION IMPLEMENTATION
 // =============================================================================
 
 bool gpioCheckValidPin(gpio_handle_t *pin){
-   return gpioCheckValidPort(pin->port) && gpioCheckValidPinNumber(pin->pin_number);
+   return gpioCheckValidPort(pin->port) && gpioCheckValidpin_number(pin->pin_number);
 }
 
 bool gpioCheckValidPortPin(gpio_port port, uint8_t pin){
-   return gpioCheckValidPort(port) && gpioCheckValidPinNumber(pin);
+   return gpioCheckValidPort(port) && gpioCheckValidpin_number(pin);
 }
 
 bool gpioCheckValidPort(gpio_port port){
    return ((port >= GPIO0) && (port <= GPIO3));
 }
 
-bool gpioCheckValidPinNumber(uint8_t pin){
+bool gpioCheckValidpin_number(uint8_t pin){
    return ((pin >= 0) && (pin <= 31));
 }
 
@@ -199,4 +219,184 @@ uint32_t gpioGetPort(gpio_port port) {
 			break;
 	}
 	return gpio_base;
+}
+
+// =============================================================================
+// GPIO INTERRUPT
+// =============================================================================
+
+void gpioAintcConfigure(uint32_t int_line, uint32_t priority, void (*fnHandler)(void)) {
+
+    /* Initialize the ARM interrupt control */
+    // IntAINTCInit(); //Reseta os regs 
+ 
+    /* Registering gpioIsr */
+    IntRegister(int_line, fnHandler); //Registra a rotina de interrupção, trocar os leds
+    
+    /* Set the priority */
+    IntPrioritySet(int_line, priority, AINTC_HOSTINT_ROUTE_IRQ); //Setar a prioridade
+    
+    /* Enable the system interrupt */
+    IntSystemEnable(int_line);
+   
+}
+
+void gpioPinIntEnable(gpio_handle_t *pin, uint32_t int_line) {
+	uint32_t base_add = gpioGetPort(pin->port);
+	if(int_line == GPIO_INTC_LINE_1) {
+		HWREG(base_add + GPIO_IRQSTATUS_SET(0)) |= (1 << pin->pin_number);
+	}
+	else {
+		HWREG(base_add + GPIO_IRQSTATUS_SET(1)) |= (1 << pin->pin_number);
+	}
+}
+
+void gpioIntTypeSet(gpio_handle_t *pin, uint32_t event_type) {
+    event_type &= 0xFF;
+	uint32_t base_add = gpioGetPort(pin->port);
+    switch(event_type) {
+
+        case GPIO_INTC_TYPE_NO_LEVEL:
+
+            /* Disabling logic LOW level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) &= ~(1 << pin->pin_number);
+
+            /* Disabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) &= ~(1 << pin->pin_number);
+
+        break;
+
+        case GPIO_INTC_TYPE_LEVEL_LOW:
+
+            /* Enabling logic LOW level detect interrupt geenration. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) |= (1 << pin->pin_number);
+
+            /* Disabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) &= ~(1 << pin->pin_number);
+
+            /* Disabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Disabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) &= ~(1 << pin->pin_number);
+
+        break;
+
+        case GPIO_INTC_TYPE_LEVEL_HIGH:
+
+            /* Disabling logic LOW level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) &= ~(1 << pin->pin_number);
+
+            /* Enabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) |= (1 << pin->pin_number);
+
+            /* Disabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Disabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) &= ~(1 << pin->pin_number);
+        
+        break;
+
+        case GPIO_INTC_TYPE_BOTH_LEVEL:
+            
+            /* Enabling logic LOW level detect interrupt geenration. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) |= (1 << pin->pin_number);
+
+            /* Enabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) |= (1 << pin->pin_number);
+
+            /* Disabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Disabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) &= ~(1 << pin->pin_number);
+            
+        break;
+
+        case GPIO_INTC_TYPE_NO_EDGE:
+            
+            /* Disabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Disabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) &= ~(1 << pin->pin_number);
+
+        break;
+
+        case GPIO_INTC_TYPE_RISE_EDGE:
+
+            /* Enabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) |= (1 << pin->pin_number);
+
+            /* Disabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Disabling logic LOW level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) &= ~(1 << pin->pin_number);
+
+            /* Disabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) &= ~(1 << pin->pin_number);
+
+        break;
+
+        case GPIO_INTC_TYPE_FALL_EDGE:
+
+            /* Disabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) &= ~(1 << pin->pin_number);
+
+            /* Enabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) |= (1 << pin->pin_number);
+
+            /* Disabling logic LOW level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) &= ~(1 << pin->pin_number);
+
+            /* Disabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) &= ~(1 << pin->pin_number);
+
+        break;
+
+        case GPIO_INTC_TYPE_BOTH_EDGE:
+
+            /* Enabling rising edge detect interrupt generation. */
+            HWREG(base_add + GPIO_RISINGDETECT) |= (1 << pin->pin_number);
+
+            /* Enabling falling edge detect interrupt generation. */
+            HWREG(base_add + GPIO_FALLINGDETECT) |= (1 << pin->pin_number);
+
+            /* Disabling logic LOW level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(0)) &= ~(1 << pin->pin_number);
+
+            /* Disabling logic HIGH level detect interrupt generation. */
+            HWREG(base_add + GPIO_LEVELDETECT(1)) &= ~(1 << pin->pin_number);
+
+        break;
+
+        default:
+        break;
+    }
+}
+
+bool gpioCheckIntFlag(gpio_handle_t *pin, uint32_t int_line) {
+    uint32_t base_add = gpioGetPort(pin->port);
+    bool flag;
+
+	if(int_line == GPIO_INTC_LINE_1) {
+		flag = (HWREG(base_add + GPIO_IRQSTATUS_0) >> pin->pin_number) & 1U;
+	}
+	else {
+		flag = (HWREG(base_add + GPIO_IRQSTATUS_1) >> pin->pin_number) & 1U;
+	}
+    return flag;
+}
+
+void gpioClearIntFlag(gpio_handle_t *pin, uint32_t int_line) {
+    uint32_t base_add = gpioGetPort(pin->port);
+
+	if(int_line == GPIO_INTC_LINE_1) {
+		HWREG(base_add + GPIO_IRQSTATUS_0) |= (1U << pin->pin_number);
+	}
+	else {
+		HWREG(base_add + GPIO_IRQSTATUS_1) |= (1U << pin->pin_number);
+	}
 }

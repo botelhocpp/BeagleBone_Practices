@@ -25,6 +25,6 @@ void cmSetCtrlModule(CONTROL_MODULE offset, unsigned int value){
 }
 
 unsigned int cmGetCtrlModule(CONTROL_MODULE offset){
-   	return(HWREG(SOC_CONTROL_REGS + offset));
+   	return HWREG(SOC_CONTROL_REGS + offset);
 }
 
