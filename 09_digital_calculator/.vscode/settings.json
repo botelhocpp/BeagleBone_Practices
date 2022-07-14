@@ -4,6 +4,8 @@
           "stdint.h": "c",
           "interrupt.h": "c",
           "hw_types.h": "c",
-          "math.h": "c"
+          "math.h": "c",
+          "drivers.h": "c",
+          "gpio.h": "c"
      }
 }

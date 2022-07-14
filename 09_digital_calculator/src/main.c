@@ -1,3 +1,4 @@
+// setenv appCalc.bin "setenv autoload no;setenv ipaddr 10.4.1.2; setenv serverip 10.4.1.1; tftp 0x80000000 /tftpboot/app;echo ***Booting to BareMetal ***;go 0x80000000"
 /**
  * @file main.c
  * @author Pedro Botelho (pedrobotelho15@alu.ufc.br)

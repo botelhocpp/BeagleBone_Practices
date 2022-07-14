@@ -1,4 +1,4 @@
-# setenv appKeyboard.bin "setenv autoload no;setenv ipaddr 10.4.1.2; setenv serverip 10.4.1.1; tftp 0x80000000 /tftpboot/app;echo ***Booting to BareMetal ***;go 0x80000000"
+# setenv appCalc.bin "setenv autoload no;setenv ipaddr 10.4.1.2; setenv serverip 10.4.1.1; tftp 0x80000000 /tftpboot/app;echo ***Booting to BareMetal ***;go 0x80000000"
 
 CHAIN=$(CHAINPATH)arm-none-eabi
 CFLAGS=-std=c99 -Wall -mfpu=neon -mhard-float -mcpu=cortex-a8
@@ -11,11 +11,11 @@ TFTP=/tftpboot/
 
 all: clean app
 
-app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o cpu.o drivers.o
-	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)cpu.o $(OBJ)drivers.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
+app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o cpu.o drivers.o lcd.o
+	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)cpu.o $(OBJ)drivers.o $(OBJ)lcd.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
 	$(CHAIN)-objcopy $(OBJ)main.elf $(BIN)spl.boot -O binary
-	cp $(BIN)spl.boot $(TFTP)appKeyboard.bin
-	ln -s $(TFTP)appKeyboard.bin $(TFTP)app
+	cp $(BIN)spl.boot $(TFTP)appCalc.bin
+	ln -s $(TFTP)appCalc.bin $(TFTP)app
 
 start.o: $(SRC)start.s
 	$(CHAIN)-as $(AFLAGS) $(SRC)start.s -o $(OBJ)start.o
@@ -46,15 +46,18 @@ cpu.o: $(SRC)cpu.c
                                         
 drivers.o: $(SRC)drivers.c                          
 	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)drivers.c -o $(OBJ)drivers.o
+                                        
+lcd.o: $(SRC)lcd.c                          
+	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)lcd.c -o $(OBJ)lcd.o
 
 copy:
-	cp $(BIN)spl.boot /tftpboot/appKeyboard.bin
+	cp $(BIN)spl.boot /tftpboot/appCalc.bin
 
 clean:
 	rm -rf $(OBJ)*.o
 	rm -rf $(OBJ)*.elf
 	rm -rf $(BIN)*.boot
-	rm -rf $(TFTP)appKeyboard.bin
+	rm -rf $(TFTP)appCalc.bin
 	rm -rf $(TFTP)app
 
 dump:

@@ -1,5 +1,6 @@
 #include "drivers.h"
 #include "gpio.h"
+#include "lcd.h"
 #include "interrupt.h"
 
 #include "uart.h"
@@ -10,7 +11,10 @@
 // GPIO PINS
 // =============================================================================
 
-static gpio_handle_t btn;
+static lcd_handler_t lcd;
+
+static gpio_handle_t clear_btn;
+static gpio_handle_t cancel_btn;
 static gpio_handle_t led01;
 static gpio_handle_t led02;
 static gpio_handle_t led03;
@@ -76,6 +80,10 @@ void drvComponentInit(void) {
      drvLcdInit();
      drvButtonInit();
      drvKeyboardInit();
+
+     lcdClearDisplay(&lcd);
+     lcdSetCursor(&lcd, 0, 0);
+     lcdWriteString(&lcd, "OI!");
 }
 
 int8_t drvReadPressedKey() {
@@ -99,12 +107,12 @@ void irqHandlerGpio1A(void) {
      read_flag = false;
 
      /* Checks if the Button pin caused the Interrupt */
-	if(gpioCheckIntFlag(&btn, GPIO_INTC_LINE_1)) {
+	if(gpioCheckIntFlag(&clear_btn, GPIO_INTC_LINE_1)) {
           /* Update the Current Function to 'Clear' */
           last_pressed_key = -1;
 
           /* Clears the Interrupt Pending Flag */
-          gpioClearIntFlag(&btn, GPIO_INTC_LINE_1);
+          gpioClearIntFlag(&clear_btn, GPIO_INTC_LINE_1);
 	}
 }
 
@@ -241,23 +249,54 @@ void drvLedInit(void) {
 }
 
 void drvLcdInit(void) {
+     gpio_handle_t rs;
+     rs.port = GPIO1;
+     rs.pin_number = 9;
 
+     gpio_handle_t en;
+     en.port = GPIO0;
+     en.pin_number = 13;
+
+     gpio_handle_t d4;
+     d4.port = GPIO3;
+     d4.pin_number = 21;
+
+     gpio_handle_t d5;
+     d5.port = GPIO3;
+     d5.pin_number = 19;
+
+     gpio_handle_t d6;
+     d6.port = GPIO1;
+     d6.pin_number = 28;
+
+     gpio_handle_t d7;
+     d7.port = GPIO0;
+     d7.pin_number = 7;
+
+     lcd.rs = rs;
+     lcd.en = en;
+     lcd.data[0] = d4;
+     lcd.data[1] = d5;
+     lcd.data[2] = d6;
+     lcd.data[3] = d7;
+
+     lcdInitModule(&lcd);
 }
 
 void drvButtonInit(void) {
      /* Initialize the Red Button (GPIO1_16) as Input */
-     btn.port = GPIO1;
-     btn.pin_number = 16;
-     gpioPInitPin(&btn, INPUT);
+     clear_btn.port = GPIO1;
+     clear_btn.pin_number = 16;
+     gpioPInitPin(&clear_btn, INPUT);
 
      /* Configure the GPIO1A Interrupt Group as Maximum Priority and attach an ISR */
      gpioAintcConfigure(SYS_INT_GPIOINT1A, 0, irqHandlerGpio1A);
 
      /* Enable Interrupts for the Button Pin in GPIO1A */
-     gpioPinIntEnable(&btn, GPIO_INTC_LINE_1);
+     gpioPinIntEnable(&clear_btn, GPIO_INTC_LINE_1);
 
      /* Configures the Interrupt Trigger */
-     gpioIntTypeSet(&btn, GPIO_INTC_TYPE_RISE_EDGE);
+     gpioIntTypeSet(&clear_btn, GPIO_INTC_TYPE_RISE_EDGE);
 }
 
 void drvKeyboardInit(void) {
