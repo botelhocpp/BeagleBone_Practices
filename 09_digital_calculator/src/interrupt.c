@@ -230,3 +230,11 @@ void IntIrqHandler(void) {
 	/* Acknowledge IRQ and enable new IRQ generation */
 	HWREG(SOC_AINTC_REGS + INTC_CONTROL) |= (1U << 0);
 }
+
+void IntDisableWatchdog(void) {
+	HWREG(SOC_WDT_1_REGS + WDT_WSPR) = 0xAAAA;
+	while((HWREG(SOC_WDT_1_REGS + WDT_WWPS) & (1<<4)));
+	
+	HWREG(SOC_WDT_1_REGS + WDT_WSPR) = 0x5555;
+	while((HWREG(SOC_WDT_1_REGS + WDT_WWPS) & (1<<4)));
+}

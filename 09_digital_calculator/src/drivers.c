@@ -30,8 +30,14 @@ static gpio_handle_t c4;
 // PRIVATE VARIABLES
 // =============================================================================
 
+/**
+ * @brief Keeps the last pressed key of the keyboard.
+ */
 static int8_t last_pressed_key = 0;
 
+/**
+ * @brief Keeps the keyboard read status.
+ */
 static bool read_flag = true;
 
 // =============================================================================
@@ -41,6 +47,8 @@ static bool read_flag = true;
 void sysModulesInit(void);
 
 void drvLedInit(void);
+
+void drvLcdInit(void);
 
 void drvButtonInit(void);
 
@@ -63,23 +71,23 @@ void irqHandlerGpio1B(void);
 // =============================================================================
 
 void drvComponentInit(void) {
+     /* Enable the GPIO modules, disable WD and Enable the INTC */
      sysModulesInit();
-     drvLedInit();
+     drvLcdInit();
      drvButtonInit();
      drvKeyboardInit();
-     putString("Config OK!\n\r", 13);
 }
 
-int8_t drvLastPressedKey() {
+int8_t drvReadPressedKey() {
+     /* Keyboard is being read */
+     read_flag = true;
+
+     /* Get the last pressed key */
      return last_pressed_key;
 }
 
-bool drvGetReadFlag() {
+bool drvCheckReadFlag() {
      return read_flag;
-}
-
-void drvSetReadFlag() {
-     read_flag = true;
 }
 
 // =============================================================================
@@ -87,24 +95,30 @@ void drvSetReadFlag() {
 // =============================================================================
 
 void irqHandlerGpio1A(void) {
+     /* Signals that the last key value was modified */
      read_flag = false;
+
+     /* Checks if the Button pin caused the Interrupt */
 	if(gpioCheckIntFlag(&btn, GPIO_INTC_LINE_1)) {
+          /* Update the Current Function to 'Clear' */
           last_pressed_key = -1;
-          //gpioTogglePinValue(&led01);
-          //gpioTogglePinValue(&led02);
-          //gpioTogglePinValue(&led03);
-          //gpioTogglePinValue(&led04);
+
+          /* Clears the Interrupt Pending Flag */
           gpioClearIntFlag(&btn, GPIO_INTC_LINE_1);
 	}
 }
 
 void irqHandlerGpio1B(void) {
+     /* Signals that the new key was not read */ 
      read_flag = false;
-	if(gpioCheckIntFlag(&c1, GPIO_INTC_LINE_2)) {
-          uint8_t column = drvKeyboardVerifyKey(&c1);
-          // last_pressed_key = column;
 
-          switch(column) {
+     /* Checks if the column 01 pin cause the interrupt in the GPIO1B group */
+	if(gpioCheckIntFlag(&c1, GPIO_INTC_LINE_2)) {
+          /* Obtains the line in which the pressed button is located */
+          uint8_t line = drvKeyboardVerifyKey(&c1);
+
+          /* Update the last pressed key based in the line and column */
+          switch(line) {
                case 1:
                     last_pressed_key = 1;
                     break;
@@ -120,13 +134,13 @@ void irqHandlerGpio1B(void) {
                default:
                     break;
           }
+          
+          /* Clear interrupt pending flag*/
           gpioClearIntFlag(&c1, GPIO_INTC_LINE_2);
      }
 	else if(gpioCheckIntFlag(&c2, GPIO_INTC_LINE_2)) {
-          uint8_t column = drvKeyboardVerifyKey(&c2);
-          //last_pressed_key = column + 4;
-
-          switch(column) {
+          uint8_t line = drvKeyboardVerifyKey(&c2);
+          switch(line) {
                case 1:
                     last_pressed_key = 2;
                     break;
@@ -145,10 +159,8 @@ void irqHandlerGpio1B(void) {
           gpioClearIntFlag(&c2, GPIO_INTC_LINE_2);
      }
 	else if(gpioCheckIntFlag(&c3, GPIO_INTC_LINE_2)) {
-          uint8_t column = drvKeyboardVerifyKey(&c3);
-          //last_pressed_key = column + 8;
-
-          switch(column) {
+          uint8_t line = drvKeyboardVerifyKey(&c3);
+          switch(line) {
                case 1:
                     last_pressed_key = 3;
                     break;
@@ -167,10 +179,8 @@ void irqHandlerGpio1B(void) {
           gpioClearIntFlag(&c3, GPIO_INTC_LINE_2);
      }
 	else if(gpioCheckIntFlag(&c4, GPIO_INTC_LINE_2)) {
-          uint8_t column = drvKeyboardVerifyKey(&c4);
-          //last_pressed_key = column + 12;
-
-          switch(column) {
+          uint8_t line = drvKeyboardVerifyKey(&c4);
+          switch(line) {
                case 1:
                     last_pressed_key = 10;
                     break;
@@ -188,6 +198,8 @@ void irqHandlerGpio1B(void) {
           }
           gpioClearIntFlag(&c4, GPIO_INTC_LINE_2);
 	}
+
+     /* Software Debouncing */
      drvDelayMs(6);
 }
 
@@ -196,7 +208,13 @@ void irqHandlerGpio1B(void) {
 // =============================================================================
 
 void sysModulesInit(void) {
+     /* Disable WD to avoid System Reset */
+     IntDisableWatchdog();
+
+     /* Initialize the Interrupt Controller (INTC) */
      IntAINTCInit();
+
+     /* Enables the GPIO Modules by enabling their clock */
      gpioInitModule(GPIO0);
      gpioInitModule(GPIO1);
      gpioInitModule(GPIO2);
@@ -222,13 +240,23 @@ void drvLedInit(void) {
      gpioPInitPin(&led04, OUTPUT);
 }
 
+void drvLcdInit(void) {
+
+}
+
 void drvButtonInit(void) {
+     /* Initialize the Red Button (GPIO1_16) as Input */
      btn.port = GPIO1;
      btn.pin_number = 16;
      gpioPInitPin(&btn, INPUT);
 
+     /* Configure the GPIO1A Interrupt Group as Maximum Priority and attach an ISR */
      gpioAintcConfigure(SYS_INT_GPIOINT1A, 0, irqHandlerGpio1A);
+
+     /* Enable Interrupts for the Button Pin in GPIO1A */
      gpioPinIntEnable(&btn, GPIO_INTC_LINE_1);
+
+     /* Configures the Interrupt Trigger */
      gpioIntTypeSet(&btn, GPIO_INTC_TYPE_RISE_EDGE);
 }
 
@@ -254,6 +282,7 @@ void drvKeyboardInit(void) {
      gpioPInitPin(&l4, OUTPUT);
      gpioSetPinValue(&l4, HIGH);
 
+     /* Enable GPIO1B Interrupts with Maximum Priority and Attach ISR */
      gpioAintcConfigure(SYS_INT_GPIOINT1B, 0, irqHandlerGpio1B); 
 
      c1.port = GPIO1;
@@ -286,7 +315,7 @@ void drvKeyboardInit(void) {
 }
 
 uint8_t drvKeyboardVerifyKey(gpio_handle_t *column) {
-     uint8_t key = 0;
+     uint8_t line = 0;
 
      gpioSetPinValue(&l1, LOW); 
      gpioSetPinValue(&l2, LOW); 
@@ -295,28 +324,28 @@ uint8_t drvKeyboardVerifyKey(gpio_handle_t *column) {
 
      gpioSetPinValue(&l1, HIGH);
      if(gpioGetPinValue(column)) {
-          key = 1;
+          line = 1;
           goto ret;
      }    
      gpioSetPinValue(&l1, LOW);
 
      gpioSetPinValue(&l2, HIGH); 
      if(gpioGetPinValue(column)) {
-          key = 2;
+          line = 2;
           goto ret;
      }    
      gpioSetPinValue(&l2, LOW); 
 
      gpioSetPinValue(&l3, HIGH); 
      if(gpioGetPinValue(column)) {
-          key = 3;
+          line = 3;
           goto ret;
      } 
      gpioSetPinValue(&l3, LOW);   
 
      gpioSetPinValue(&l4, HIGH); 
      if(gpioGetPinValue(column)) {
-          key = 4;
+          line = 4;
           goto ret;
      }   
      gpioSetPinValue(&l4, LOW); 
@@ -327,7 +356,7 @@ uint8_t drvKeyboardVerifyKey(gpio_handle_t *column) {
      gpioSetPinValue(&l3, HIGH); 
      gpioSetPinValue(&l4, HIGH); 
 
-     return key;
+     return line;
 }
 
 void drvDelayMs(int ms) {

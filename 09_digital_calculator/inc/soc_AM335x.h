@@ -153,6 +153,8 @@ extern "C" {
 /** @brief Base address of WDT memory mapped registers                        */
 #define SOC_WDT_0_REGS                       (0x44E33000)
 #define SOC_WDT_1_REGS                       (0x44E35000)
+#define WDT_WWPS                             0x0034  
+#define WDT_WSPR                             0x0048                          
 
 /** @brief Base address of WDT memory mapped registers                        */
 #define SOC_CPSW_SS_REGS                     (0x4A100000)

@@ -164,6 +164,7 @@ void IntSystemDisable(unsigned int intrNum);
 void IntMasterIRQEnable(void);
 void IntMasterIRQDisable(void);
 void IntIrqHandler(void);
+void IntDisableWatchdog(void);
 
 #ifdef __cplusplus
 }

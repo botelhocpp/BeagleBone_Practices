@@ -1,6 +1,9 @@
 {
      "files.associations": {
           "soc_am335x.h": "c",
-          "stdint.h": "c"
+          "stdint.h": "c",
+          "interrupt.h": "c",
+          "hw_types.h": "c",
+          "math.h": "c"
      }
 }

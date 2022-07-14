@@ -10,10 +10,8 @@
  */
 void drvComponentInit(void);
 
-int8_t drvLastPressedKey();
+int8_t drvReadPressedKey();
 
-bool drvGetReadFlag();
-
-void drvSetReadFlag();
+bool drvCheckReadFlag();
 
 #endif

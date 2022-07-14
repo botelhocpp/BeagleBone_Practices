@@ -109,6 +109,13 @@ typedef struct {
  *-----------------------------------------------------------------------------*/
 
 void gpioFInitPin(gpio_handle_t *pin, pin_direction direction);
+
+/**
+ * @brief Initialize the given pin with the given direction.
+ * 
+ * @param pin 
+ * @param direction 
+ */
 void gpioPInitPin(gpio_handle_t *pin, pin_direction direction);
 void gpioInitModule(gpio_port port);
 void gpioInitPin(gpio_handle_t *pin);

@@ -226,17 +226,14 @@ uint32_t gpioGetPort(gpio_port port) {
 // =============================================================================
 
 void gpioAintcConfigure(uint32_t int_line, uint32_t priority, void (*fnHandler)(void)) {
-
-    /* Initialize the ARM interrupt control */
-    // IntAINTCInit(); //Reseta os regs 
  
-    /* Registering gpioIsr */
-    IntRegister(int_line, fnHandler); //Registra a rotina de interrupção, trocar os leds
+    /* Registering ISR for GPIO (Attach ISR to IRQ) */
+    IntRegister(int_line, fnHandler);
     
     /* Set the priority */
-    IntPrioritySet(int_line, priority, AINTC_HOSTINT_ROUTE_IRQ); //Setar a prioridade
+    IntPrioritySet(int_line, priority, AINTC_HOSTINT_ROUTE_IRQ);
     
-    /* Enable the system interrupt */
+    /* Enable the system interrupt by removing the mask */
     IntSystemEnable(int_line);
    
 }

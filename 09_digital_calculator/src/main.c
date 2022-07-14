@@ -1,10 +1,9 @@
 /**
  * @file main.c
  * @author Pedro Botelho (pedrobotelho15@alu.ufc.br)
- * @brief Basic interrupt program, where a button light
- * four embedded LEDs, using modularized functions.
+ * @brief 
  * @version 1.0
- * @date 2022-07-08
+ * @date 2022-07-13
  * 
  * @copyright Copyright (c) 2022
  * 
@@ -63,19 +62,25 @@ int main(void){
      drvComponentInit();
      IntMasterIRQEnable();
      
+     /* Temporary Memory Space to Store a String to be Printed */
      char buffer[10];
+
+     /* Size of the String to be Printed */
      uint8_t size = 0;
+
+     /* Pressed Key of the Keyboard */
      int8_t key = -1;
 
      while(1) {
-          /* Waits for the keyboard to be used */
-          while(drvGetReadFlag());
+          /* Waits for the keyboard to be used. */
+          /* Only read the keyboard if read flag is false. */
+          if(drvCheckReadFlag()) {
+               /* Check read flag again until it's false */
+               continue;
+          }
 
-          /* Obtains the pressed key */
-          key = drvLastPressedKey();
-
-          /* Signals that the keyboard has been read */
-          drvSetReadFlag();
+          /* Obtains the pressed key and signals that the keyboard has been read */
+          key = drvReadPressedKey();
 
           /* Get the current value to be shown */
           size = getCurrentValue(key, buffer);
@@ -95,12 +100,12 @@ int main(void){
 // =============================================================================
 
 /**
- * @brief The current pressed number.
+ * @brief The current pressed number register.
  */
 static int32_t num = 0;
 
 /**
- * @brief The current accumulator.
+ * @brief The current accumulator register.
  */
 static int32_t acc = 0;
 
@@ -109,33 +114,77 @@ static int32_t acc = 0;
  */
 static char operation = '+';
 
+/**
+ * @brief Signals wether the current input is a number or not. 
+ */
+static bool numberInput = false;
+
+static uint8_t number_size = 0;
+
 // =============================================================================
 // PRIVATE FUNCTIONS IMPLEMENTATION
 // =============================================================================
 
 int getCurrentValue(int8_t key, char *buffer) {
-     int size = 0;
+
+     /* Result to be put to buffer (if it's not '-1') */
+     int result = -1;
 
      /* Clear (C) Button: Clears all the operation */
      if(key == -1) {
+          /* Signals that the current operation is not a number input */
+          numberInput = false;
+
+          /* Clears accumulator register */
           acc = 0;
+
+          /* Clears current number register */
           num = 0;
-          size = intToString(num, buffer, 10);
+
+          /* Value to be printed is 0 */
+          result = 0;
      }
 
      /* TODO: Cancel Entry (CE) Button: Clears the most recent entry */
 
      /* Numeric Keys (0-9) */
      else if (key >= 0 && key <= 9) {
-          if (operation == ' ') {
-               acc = 0;
+
+          /* Previous Input was not a Number */
+          if(numberInput == false) {
+               /* Current input is a number */
+               numberInput = true;
+
+               /* Update 'num' register */
+               num = key;
           }
-          num = key;
-          size = intToString(num, buffer, 10);
+
+          /* Previous Input was a Number */
+          else {
+               /* Last operation was 'Equals', so clear Accumulator */
+               if (operation == ' ') {
+                    acc = 0;
+               }
+
+               /* Last operation was number input */
+               else if(num != 0 && number_size > 0) {
+                    int32_t temp = num*10 + key;
+                    if(temp < 2147483648) {
+                         num = temp;
+                    }
+               }
+          }
+
+          /* Obtains the result to be printed */
+          result = num;
      }
 
      /* Sum Button (A) */
      else if (key == 10) {
+          /* Current input is not a number */
+          numberInput = false;
+
+          /*  */
           if (acc == 0) {
                operation = '+';
                acc = num;
@@ -143,7 +192,7 @@ int getCurrentValue(int8_t key, char *buffer) {
           else if (num != 0) {
                operation = '+';
                acc += num;
-               size = intToString(acc, buffer, 10);
+               result = acc;
           }
           else {
                operation = '+';
@@ -158,20 +207,39 @@ int getCurrentValue(int8_t key, char *buffer) {
 
      /* Equals Button (#) */
      else if (key == 15) {
+          numberInput = false;
           if (operation == '+') {
                operation = ' ';
                acc += num;
                num = 0;
-               size = intToString(acc, buffer, 10);
+               result = acc;
+          }
+          else if(operation == '-') {
+               // TODO: SUB
+          }
+          else if(operation == '*') {
+               // TODO: MUL
+          }
+          else {
+               // TODO: DIV
           }
      }
 
-     return size;
+     /* If the last pressed key resulted in a result */
+     if(result != -1) {
+          number_size = intToString(result, buffer, 10);
+     }
+     return number_size;
 }
 
 void printValue(char *buffer, uint8_t size) {
+     /* Clears UART Terminal */
      putString("\033[H\033[J\r", 8);
+
+     /* Print Current Value */
      putString(buffer, size);
+
+     /* New Line */
      putString("\n\r", 3);
 }
 
