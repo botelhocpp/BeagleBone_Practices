@@ -2,6 +2,8 @@
 #define __DRIVERS_H_
 
 #include <stdio.h>
+
+#include "lcd.h"
 #include "hw_types.h"
 
 /**
@@ -10,8 +12,10 @@
  */
 void drvComponentInit(void);
 
-int8_t drvReadPressedKey();
+char drvReadPressedKey(void);
 
-bool drvCheckReadFlag();
+bool drvCheckReadFlag(void);
+
+lcd_handler_t *drvGetLcdHandler(void);
 
 #endif

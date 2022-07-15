@@ -2,6 +2,7 @@
 #include "gpio.h"
 #include "lcd.h"
 #include "interrupt.h"
+#include "timers.h"
 
 #include "uart.h"
 
@@ -14,7 +15,6 @@
 static lcd_handler_t lcd;
 
 static gpio_handle_t clear_btn;
-static gpio_handle_t cancel_btn;
 static gpio_handle_t led01;
 static gpio_handle_t led02;
 static gpio_handle_t led03;
@@ -37,7 +37,7 @@ static gpio_handle_t c4;
 /**
  * @brief Keeps the last pressed key of the keyboard.
  */
-static int8_t last_pressed_key = 0;
+static char last_pressed_key = 0;
 
 /**
  * @brief Keeps the keyboard read status.
@@ -58,8 +58,6 @@ void drvButtonInit(void);
 
 void drvKeyboardInit(void);
 
-void drvDelayMs(int ms);
-
 uint8_t drvKeyboardVerifyKey(gpio_handle_t *column);
 
 // =============================================================================
@@ -77,16 +75,11 @@ void irqHandlerGpio1B(void);
 void drvComponentInit(void) {
      /* Enable the GPIO modules, disable WD and Enable the INTC */
      sysModulesInit();
-     drvLcdInit();
      drvButtonInit();
      drvKeyboardInit();
-
-     lcdClearDisplay(&lcd);
-     lcdSetCursor(&lcd, 0, 0);
-     lcdWriteString(&lcd, "OI!");
 }
 
-int8_t drvReadPressedKey() {
+char drvReadPressedKey() {
      /* Keyboard is being read */
      read_flag = true;
 
@@ -109,11 +102,14 @@ void irqHandlerGpio1A(void) {
      /* Checks if the Button pin caused the Interrupt */
 	if(gpioCheckIntFlag(&clear_btn, GPIO_INTC_LINE_1)) {
           /* Update the Current Function to 'Clear' */
-          last_pressed_key = -1;
+          last_pressed_key = 'C';
 
           /* Clears the Interrupt Pending Flag */
           gpioClearIntFlag(&clear_btn, GPIO_INTC_LINE_1);
 	}
+
+     /* Software Debouncing */
+     delay_ms(50);
 }
 
 void irqHandlerGpio1B(void) {
@@ -128,16 +124,16 @@ void irqHandlerGpio1B(void) {
           /* Update the last pressed key based in the line and column */
           switch(line) {
                case 1:
-                    last_pressed_key = 1;
+                    last_pressed_key = '1';
                     break;
                case 2:
-                    last_pressed_key = 4;
+                    last_pressed_key = '4';
                     break;
                case 3:
-                    last_pressed_key = 7;
+                    last_pressed_key = '7';
                     break;
                case 4:
-                    last_pressed_key = 14;
+                    last_pressed_key = '*';
                     break;
                default:
                     break;
@@ -150,16 +146,16 @@ void irqHandlerGpio1B(void) {
           uint8_t line = drvKeyboardVerifyKey(&c2);
           switch(line) {
                case 1:
-                    last_pressed_key = 2;
+                    last_pressed_key = '2';
                     break;
                case 2:
-                    last_pressed_key = 5;
+                    last_pressed_key = '5';
                     break;
                case 3:
-                    last_pressed_key = 8;
+                    last_pressed_key = '8';
                     break;
                case 4:
-                    last_pressed_key = 0;
+                    last_pressed_key = '0';
                     break;
                default:
                     break;
@@ -170,16 +166,16 @@ void irqHandlerGpio1B(void) {
           uint8_t line = drvKeyboardVerifyKey(&c3);
           switch(line) {
                case 1:
-                    last_pressed_key = 3;
+                    last_pressed_key = '3';
                     break;
                case 2:
-                    last_pressed_key = 6;
+                    last_pressed_key = '6';
                     break;
                case 3:
-                    last_pressed_key = 9;
+                    last_pressed_key = '9';
                     break;
                case 4:
-                    last_pressed_key = 15;
+                    last_pressed_key = '=';
                     break;
                default:
                     break;
@@ -190,16 +186,16 @@ void irqHandlerGpio1B(void) {
           uint8_t line = drvKeyboardVerifyKey(&c4);
           switch(line) {
                case 1:
-                    last_pressed_key = 10;
+                    last_pressed_key = 'D';
                     break;
                case 2:
-                    last_pressed_key = 11;
+                    last_pressed_key = '+';
                     break;
                case 3:
-                    last_pressed_key = 12;
+                    last_pressed_key = '-';
                     break;
                case 4:
-                    last_pressed_key = 13;
+                    last_pressed_key = '/';
                     break;
                default:
                     break;
@@ -208,7 +204,7 @@ void irqHandlerGpio1B(void) {
 	}
 
      /* Software Debouncing */
-     drvDelayMs(6);
+     delay_ms(30);
 }
 
 // =============================================================================
@@ -227,6 +223,8 @@ void sysModulesInit(void) {
      gpioInitModule(GPIO1);
      gpioInitModule(GPIO2);
      gpioInitModule(GPIO3);
+
+     timerInitModule();
 }
 
 void drvLedInit(void) {
@@ -251,27 +249,33 @@ void drvLedInit(void) {
 void drvLcdInit(void) {
      gpio_handle_t rs;
      rs.port = GPIO1;
-     rs.pin_number = 9;
+     rs.pin_number = 16;
+     gpioPInitPin(&rs, OUTPUT);
 
      gpio_handle_t en;
      en.port = GPIO0;
-     en.pin_number = 13;
+     en.pin_number = 7;
+     gpioPInitPin(&en, OUTPUT);
 
      gpio_handle_t d4;
-     d4.port = GPIO3;
-     d4.pin_number = 21;
+     d4.port = GPIO1;
+     d4.pin_number = 17;
+     gpioPInitPin(&d4, OUTPUT);
 
      gpio_handle_t d5;
      d5.port = GPIO3;
-     d5.pin_number = 19;
+     d5.pin_number = 21;
+     gpioPInitPin(&d5, OUTPUT);
 
      gpio_handle_t d6;
-     d6.port = GPIO1;
-     d6.pin_number = 28;
+     d6.port = GPIO3;
+     d6.pin_number = 19;
+     gpioPInitPin(&d6, OUTPUT);
 
      gpio_handle_t d7;
-     d7.port = GPIO0;
-     d7.pin_number = 7;
+     d7.port = GPIO1;
+     d7.pin_number = 28;
+     gpioPInitPin(&d7, OUTPUT);
 
      lcd.rs = rs;
      lcd.en = en;
@@ -284,9 +288,9 @@ void drvLcdInit(void) {
 }
 
 void drvButtonInit(void) {
-     /* Initialize the Red Button (GPIO1_16) as Input */
+     /* Initialize the Red Button (GPIO1_9) as Input */
      clear_btn.port = GPIO1;
-     clear_btn.pin_number = 16;
+     clear_btn.pin_number = 2;
      gpioPInitPin(&clear_btn, INPUT);
 
      /* Configure the GPIO1A Interrupt Group as Maximum Priority and attach an ISR */
@@ -398,8 +402,6 @@ uint8_t drvKeyboardVerifyKey(gpio_handle_t *column) {
      return line;
 }
 
-void drvDelayMs(int ms) {
-     for(int i = 0; i < ms; i++) {
-          for(int j = 0; j < 30000; j++);
-     }
+lcd_handler_t *drvGetLcdHandler(void) {
+     return &lcd;
 }

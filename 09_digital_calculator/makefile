@@ -11,8 +11,8 @@ TFTP=/tftpboot/
 
 all: clean app
 
-app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o cpu.o drivers.o lcd.o
-	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)cpu.o $(OBJ)drivers.o $(OBJ)lcd.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
+app: start.o main.o gpio.o pad.o control_module.o clock_module.o interrupt.o uart.o cpu.o drivers.o lcd.o timers.o
+	$(CHAIN)-ld $(OBJ)start.o $(OBJ)main.o $(OBJ)gpio.o $(OBJ)pad.o $(OBJ)control_module.o $(OBJ)clock_module.o $(OBJ)interrupt.o $(OBJ)uart.o $(OBJ)cpu.o $(OBJ)drivers.o $(OBJ)lcd.o $(OBJ)timers.o -T $(SRC)memmap.ld -o $(OBJ)main.elf
 	$(CHAIN)-objcopy $(OBJ)main.elf $(BIN)spl.boot -O binary
 	cp $(BIN)spl.boot $(TFTP)appCalc.bin
 	ln -s $(TFTP)appCalc.bin $(TFTP)app
@@ -49,6 +49,9 @@ drivers.o: $(SRC)drivers.c
                                         
 lcd.o: $(SRC)lcd.c                          
 	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)lcd.c -o $(OBJ)lcd.o
+	
+timers.o: $(SRC)timers.c                          
+	$(CHAIN)-gcc $(CFLAGS) $(IPATH) -c $(SRC)timers.c -o $(OBJ)timers.o
 
 copy:
 	cp $(BIN)spl.boot /tftpboot/appCalc.bin

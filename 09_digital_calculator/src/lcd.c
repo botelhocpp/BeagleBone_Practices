@@ -1,5 +1,7 @@
-#include <gpio.h>
-#include <lcd.h>
+#include "lcd.h"
+
+#include "gpio.h"
+#include "timers.h"
 
 // ==========================================================================
 // LCD INSTRUCTION CODES
@@ -135,10 +137,6 @@ void lcdSendBits(lcd_handler_t *lcd, uint8_t byte);
 
 void lcdEnablePulse(lcd_handler_t *lcd);
 
-void delay_ms(uint32_t ms);
-
-void delay_us(uint32_t us);
-
 // ==========================================================================
 // PUBLIC FUNCTIONS IMPLEMENTATION
 // ==========================================================================
@@ -165,6 +163,7 @@ void lcdInitModule(lcd_handler_t *lcd) {
 	lcdSendCommand(lcd, DISPLAY_CLEAR);
 	lcdSendCommand(lcd, CURSOR_TURN_OFF);
 	lcdSendCommand(lcd, CURSOR_START_FIRST_LINE);
+	// lcdSendCommand(lcd, CURSOR_BLINK);
 }
 
 void lcdClearDisplay(lcd_handler_t *lcd) {
@@ -290,16 +289,4 @@ void lcdEnablePulse(lcd_handler_t *lcd) {
 
 	// WAIT 45us
 	delay_us(100);
-}
-
-void delay_ms(uint32_t ms) {
-	for(int i = 0; i < ms; i++) {
-		for(int j = 0; j < 300000; j++);
-	}
-}
-
-void delay_us(uint32_t us) {
-	for(int i = 0; i < us; i++) {
-		for(int j = 0; j < 300; j++);
-	}
 }

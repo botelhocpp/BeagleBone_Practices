@@ -1,21 +1,10 @@
-// setenv appCalc.bin "setenv autoload no;setenv ipaddr 10.4.1.2; setenv serverip 10.4.1.1; tftp 0x80000000 /tftpboot/app;echo ***Booting to BareMetal ***;go 0x80000000"
-/**
- * @file main.c
- * @author Pedro Botelho (pedrobotelho15@alu.ufc.br)
- * @brief 
- * @version 1.0
- * @date 2022-07-13
- * 
- * @copyright Copyright (c) 2022
- * 
- */
-
 // =============================================================================
 // LIBRARIES
 // =============================================================================
 
 #include <stdint.h>
 
+#include "lcd.h"
 #include "gpio.h"
 #include "interrupt.h"
 #include "drivers.h"
@@ -33,24 +22,11 @@
  * @param size The maximum size of the resulting string.
  * @return int The size of the resulting string. 
  */
-int intToString(uint32_t value, char *buffer, uint8_t size);
+int intToString(int32_t value, char *buffer, uint8_t size);
 
-/**
- * @brief Get the current value to be printed.
- * 
- * @param key The pressed key.
- * @param buffer A buffer to place the string to be printed.
- * @return int The size of the string.
- */
-int getCurrentValue(int8_t key, char *buffer);
+void calculationProcedureUart(char key);
 
-/**
- * @brief Print the value in the display.
- * 
- * @param buffer Where the value is, as a string.
- * @param size The size of the string.
- */
-void printValue(char *buffer, uint8_t size);
+void calculationProcedureLcd(char key);
 
 // =============================================================================
 // MAIN CODE
@@ -58,41 +34,32 @@ void printValue(char *buffer, uint8_t size);
 
 int main(void){
 
-     /* Initialize the System Components and Drivers */
+     /* Inicializa os componentes do sistema e drivers. */
      IntMasterIRQDisable();
      drvComponentInit();
      IntMasterIRQEnable();
      
-     /* Temporary Memory Space to Store a String to be Printed */
-     char buffer[10];
+     /* Limpa o terminal UART */
+     clearTerminal();
 
-     /* Size of the String to be Printed */
-     uint8_t size = 0;
+     /* Valor Padrão Inicial da Calculadora */
+     putCh('0');
 
-     /* Pressed Key of the Keyboard */
-     int8_t key = -1;
+     /* Tecla pressionada no teclado. */
+     char key;
 
      while(1) {
-          /* Waits for the keyboard to be used. */
-          /* Only read the keyboard if read flag is false. */
+          /* Verifica se o teclado foi lido. */
           if(drvCheckReadFlag()) {
-               /* Check read flag again until it's false */
+               /* Se sim, verifique até o estado ser atualizado. */
                continue;
           }
 
-          /* Obtains the pressed key and signals that the keyboard has been read */
+          /* Se não, obtenha a nova tecla pressionada. */
           key = drvReadPressedKey();
-
-          /* Get the current value to be shown */
-          size = getCurrentValue(key, buffer);
           
-          /* If it's not a number, don't do anything */
-          if(size == 0) {
-               continue;
-          }
-
-          /* Prints the current value on the screen */
-          printValue(buffer, size);
+          /* Execute um processamento baseado na tecla pressionada. */
+          calculationProcedureUart(key);
      }
 }
 
@@ -100,151 +67,246 @@ int main(void){
 // PRIVATE VARIABLES
 // =============================================================================
 
-/**
- * @brief The current pressed number register.
- */
-static int32_t num = 0;
+/* Espaços de memória auxiliares para converter int em str. */
+static char buffer[20];
+static int buffer_size = 0;
 
-/**
- * @brief The current accumulator register.
- */
-static int32_t acc = 0;
+/* Índice do operando atual: */
+/* 0: Primeiro               */
+/* 1: Segundo                */
+/* 2: Resultado              */
+static int indice_operando = 0;
 
-/**
- * @brief The current operation to be performed.
- */
-static char operation = '+';
+/* Operação Atual. */
+static char operacao = ' ';
 
-/**
- * @brief Signals wether the current input is a number or not. 
- */
-static bool numberInput = false;
+/* Operandos das operações. */
+static long operando01 = 0;
+static long operando02 = 0;
 
-static uint8_t number_size = 0;
+/* Resultado das Operações. */
+/* Resultado = OP1 operacao OP2 */
+static long resultado = 0;
 
 // =============================================================================
 // PRIVATE FUNCTIONS IMPLEMENTATION
 // =============================================================================
 
-int getCurrentValue(int8_t key, char *buffer) {
-
-     /* Result to be put to buffer (if it's not '-1') */
-     int result = -1;
-
-     /* Clear (C) Button: Clears all the operation */
-     if(key == -1) {
-          /* Signals that the current operation is not a number input */
-          numberInput = false;
-
-          /* Clears accumulator register */
-          acc = 0;
-
-          /* Clears current number register */
-          num = 0;
-
-          /* Value to be printed is 0 */
-          result = 0;
-     }
-
-     /* TODO: Cancel Entry (CE) Button: Clears the most recent entry */
-
-     /* Numeric Keys (0-9) */
-     else if (key >= 0 && key <= 9) {
-
-          /* Previous Input was not a Number */
-          if(numberInput == false) {
-               /* Current input is a number */
-               numberInput = true;
-
-               /* Update 'num' register */
-               num = key;
-          }
-
-          /* Previous Input was a Number */
-          else {
-               /* Last operation was 'Equals', so clear Accumulator */
-               if (operation == ' ') {
-                    acc = 0;
+void calculationProcedureUart(char key) {
+     /* Verifica se a tecla pressionada é numérica */
+     if (key >= '0' && key <= '9') {
+          /* Verifica o índice do operando para modificar a variável correspondente */
+          if (indice_operando == 0) {
+               if(operando01 == 0) {
+                    clearTerminal();
                }
+               /* Coloque o numero pressionado na tela */
+               putCh(key);
 
-               /* Last operation was number input */
-               else if(num != 0 && number_size > 0) {
-                    int32_t temp = num*10 + key;
-                    if(temp < 2147483648) {
-                         num = temp;
-                    }
+               /* Obtem o valor numerico da tecla */
+               key -= '0';
+
+               /* Concatena o valor anterior com a tecla escolhida */
+               long temp = operando01 * 10 + key;
+               if(temp < 2147483648) {
+                    operando01 = temp;
+               }
+               else {
+                    putString("Nao e possivel inserir numeros muito grandes!", 47);
+               }
+          }
+          else if (indice_operando == 1) {
+               putCh(key);
+               key -= '0';
+               long temp = operando02 * 10 + key;
+               if(temp < 2147483648) {
+                    operando02 = temp;
+               }
+               else {
+                    putString("Nao e possivel inserir numeros muito grandes!", 47);
                }
           }
 
-          /* Obtains the result to be printed */
-          result = num;
-     }
-
-     /* Sum Button (A) */
-     else if (key == 10) {
-          /* Current input is not a number */
-          numberInput = false;
-
-          /*  */
-          if (acc == 0) {
-               operation = '+';
-               acc = num;
-          }
-          else if (num != 0) {
-               operation = '+';
-               acc += num;
-               result = acc;
-          }
+          /* Tecla de Igual (#) foi pressionada anteriormente, resetar o procedimento. */
           else {
-               operation = '+';
+               /* Limpa o terminal para inserir os novos valores iniciais */
+               clearTerminal();
+
+               /* Inicia a tela com a tecla pressionada */
+               putCh(key);
+
+               /* Reseta o indice do operando */
+               indice_operando = 0;
+
+               /* Limpa a operação atual */
+               operacao = ' ';
+
+               /* Obtém o primeiro operando como a tecla pressionada */
+               operando01 = key - '0';
+               operando02 = 0;
           }
      }
 
-     /* TODO: Sub Button (B) */
+     /* Verifica se a Tecla Pressionada é o Botão Vermelho */
+     else if (key == 'C') {
+          /* Irá limpar tudo, inclusive o terminal */
+          clearTerminal();
 
-     /* TODO: Mul Button (C) */
+          /* Reseta as variáveis */
+          operando01 = 0;
+          operando02 = 0;
+          indice_operando = 0;
+          operacao = ' ';
+          resultado = 0;
 
-     /* TODO: Div Button (D) */
+          /* Coloca zero no terminal para indicar que o sistema foi "limpo" */
+          putCh('0');
+     }
 
-     /* Equals Button (#) */
-     else if (key == 15) {
-          numberInput = false;
-          if (operation == '+') {
-               operation = ' ';
-               acc += num;
-               num = 0;
-               result = acc;
+     /* Verifica se a Tecla Pressionada é a tecla 'A' (DELETE) */
+     else if (key == 'D') {
+
+          /* Limpa o terminal para reconstruírmos o estado anterior à entrada atual */
+          clearTerminal();
+          
+          /* Se o botão foi pressionado durante a inserção do segundo operando */
+          if (indice_operando == 1) {
+               /* Reseta o valor do segundo operando */
+               operando02 = 0;
+
+               /* Transforma o operando 1 em uma string, salvando-a em buffer */
+               buffer_size = intToString(operando01, buffer, 20);
+
+               /* Imprime o operando 01 */  
+               putString(buffer, buffer_size); 
+
+               /* Imprime a operação */
+               putCh(operacao);     
+
+               /* Retorna o índice do operando para o anterior */
+               indice_operando--;
           }
-          else if(operation == '-') {
-               // TODO: SUB
+          
+          /* Se o botão foi pressionado durante a escolha da operação */
+          else if (operacao != ' ' && operando02 == 0) {
+               /* Reseta a escolha de operação */
+               operacao = ' ';
+
+               /* Transforma o operando 01 dm string e salva em buffer */
+               buffer_size = intToString(operando01, buffer, 20);
+
+               /* Imprime o operando 01 */
+               putString(buffer, buffer_size);
           }
-          else if(operation == '*') {
-               // TODO: MUL
+          
+          /* Se o botão foi pressionado durante a inserção do primeiro operando */
+          else if (indice_operando == 0) {
+               /* Reseta o valor do operando 01 */
+               operando01 = 0;
+
+               /* Reseta a operação */
+               operacao = ' ';
+
+               /* Mostra Zero no display */
+               putCh('0');
           }
-          else {
-               // TODO: DIV
+          // No resultado:
+          else if(indice_operando == 2) {
+               operando01 = 0;
+               operando02 = 0;
+               operacao = ' ';
+               putCh('0');
           }
      }
 
-     /* If the last pressed key resulted in a result */
-     if(result != -1) {
-          number_size = intToString(result, buffer, 10);
+     /* Verifica se a tecla igual foi pressionada durante a operação de soma */
+     else if (key == '=' && operacao == '+') {
+          /* Incrementa o operando para indicar "resultado" */
+          indice_operando++;
+
+          /* Limpa o identificador de operação */
+          operacao = ' ';
+
+          /* Realiza a operação entre os operandos e salva em resultado */
+          resultado = operando01 + operando02;
+          
+          /* Imprime o resultado no ter
+               putCh('0');minal */
+          putString("\r\nANS=", 7);
+          buffer_size = intToString(resultado, buffer, 20);
+          putString(buffer, buffer_size);
      }
-     return number_size;
+
+     /* Verifica se a tecla igual foi pressionada durante a operação de subtração */
+     else if (key == '=' && operacao == '-') {
+          indice_operando++;
+          operacao = ' ';
+          resultado = operando01 - operando02;
+          putString("\r\nANS=", 7);
+
+          /* Cria uma variável temporária para tratar do caso negativo */
+          int valor_impresso = resultado;
+          if (operando01 < operando02) {
+               valor_impresso *= -1;
+               putCh('-');
+          }
+
+          /* Imprime no terminal */
+          buffer_size = intToString(valor_impresso, buffer, 20);
+          putString(buffer, buffer_size);
+     }
+
+     /* Verifica se a tecla igual foi pressionada durante a operação de multiplicação */
+     else if (key == '=' && operacao == '*') {
+          indice_operando++;
+          operacao = ' ';
+          resultado = operando01 * operando02;
+          putString("\r\nANS=", 7);
+          buffer_size = intToString(resultado, buffer, 20);
+          putString(buffer, buffer_size);
+     }
+
+     /* Verifica se a tecla igual foi pressionada durante a operação de divisão */
+     else if (key == '=' && operacao == '/') {
+
+     }
+
+     /* Verifica se uma tecla de operação foi pressionada durante a inscerção do primeiro operando */
+     else if ((key == '+' || key == '-' || key == '*' || key == '/') && (indice_operando == 0)) {
+          /* O próximo operando será manejado */
+          indice_operando++;
+
+          /* A operação a ser realizada foi digitada */
+          operacao = key;
+
+          /* Imprime o simbolo da operação */
+          putCh(operacao);
+     }
+
+     /* Verifica se uma tecla de operação foi pressionada após obter um resultado */
+     else if ((key == '+' || key == '-' || key == '*' || key == '/') && (operacao == ' ')) {
+          clearTerminal();
+
+          /* Próxima entrada será o segundo operando */
+          indice_operando = 1;
+          
+          /* O primeiro operando será o resultado obtido anteriormente */
+          operando01 = resultado;
+
+          /* Nova operação a ser realizada com o resultado obtido */
+          operacao = key;
+
+          /* Operando 02 vai ser preenchido pelo usuário */
+          operando02 = 0;
+
+          /* Imprime o operando 01 e a operação */
+          buffer_size = intToString(operando01, buffer, 20);
+          putString(buffer, buffer_size);
+          putCh(operacao);
+     }
 }
 
-void printValue(char *buffer, uint8_t size) {
-     /* Clears UART Terminal */
-     putString("\033[H\033[J\r", 8);
-
-     /* Print Current Value */
-     putString(buffer, size);
-
-     /* New Line */
-     putString("\n\r", 3);
-}
-
-int intToString(uint32_t value, char *buffer, uint8_t size) {
+int intToString(int32_t value, char *buffer, uint8_t size) {
      char string[size];
      int i;
      for(i = 0; i < size - 1; i++) {
