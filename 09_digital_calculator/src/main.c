@@ -23,9 +23,7 @@ lcd_handler_t *lcd;
 
 int intToString(int32_t value, char *buffer, uint8_t size);
 
-void calculationProcedureUart(char key);
-
-void calculationProcedureLcd(char key);
+void calculationProcedure(char key);
 
 void debug(void);
 
