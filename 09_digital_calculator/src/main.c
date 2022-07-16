@@ -5,28 +5,29 @@
 #include <stdint.h>
 
 #include "lcd.h"
-#include "gpio.h"
+#include "uart.h"
 #include "interrupt.h"
 #include "drivers.h"
+
+#define LCD_DISPLAY
+
+// =============================================================================
+// PRIVATE GLOBAL CONTROL VARIABLES
+// =============================================================================
+
+lcd_handler_t *lcd;
 
 // =============================================================================
 // PRIVATE FUNCTIONS PROTOTYPES
 // =============================================================================
 
-/**
- * @brief Convert a integer value to a string of given size, and save it in the
- * given buffer.
- * 
- * @param value The integer value to be converted.
- * @param buffer The memory buffer to place the resulting string. 
- * @param size The maximum size of the resulting string.
- * @return int The size of the resulting string. 
- */
 int intToString(int32_t value, char *buffer, uint8_t size);
 
 void calculationProcedureUart(char key);
 
 void calculationProcedureLcd(char key);
+
+void debug(void);
 
 // =============================================================================
 // MAIN CODE
@@ -34,32 +35,25 @@ void calculationProcedureLcd(char key);
 
 int main(void){
 
-     /* Inicializa os componentes do sistema e drivers. */
      IntMasterIRQDisable();
      drvComponentInit();
      IntMasterIRQEnable();
-     
-     /* Limpa o terminal UART */
-     clearTerminal();
 
-     /* Valor Padrão Inicial da Calculadora */
-     putCh('0');
+     lcd = drvGetLcdHandler();
+     lcdClearDisplay(lcd);
+     lcdSetCursor(lcd, 0, 0);
+     lcdWriteChar(lcd, '0');
 
-     /* Tecla pressionada no teclado. */
      char key;
 
      while(1) {
-          /* Verifica se o teclado foi lido. */
           if(drvCheckReadFlag()) {
-               /* Se sim, verifique até o estado ser atualizado. */
                continue;
           }
 
-          /* Se não, obtenha a nova tecla pressionada. */
           key = drvReadPressedKey();
           
-          /* Execute um processamento baseado na tecla pressionada. */
-          calculationProcedureUart(key);
+          calculationProcedure(key);
      }
 }
 
@@ -67,242 +61,255 @@ int main(void){
 // PRIVATE VARIABLES
 // =============================================================================
 
-/* Espaços de memória auxiliares para converter int em str. */
 static char buffer[20];
 static int buffer_size = 0;
 
-/* Índice do operando atual: */
-/* 0: Primeiro               */
-/* 1: Segundo                */
-/* 2: Resultado              */
 static int indice_operando = 0;
 
-/* Operação Atual. */
 static char operacao = ' ';
 
-/* Operandos das operações. */
 static long operando01 = 0;
 static long operando02 = 0;
 
-/* Resultado das Operações. */
-/* Resultado = OP1 operacao OP2 */
 static long resultado = 0;
 
 // =============================================================================
 // PRIVATE FUNCTIONS IMPLEMENTATION
 // =============================================================================
 
-void calculationProcedureUart(char key) {
-     /* Verifica se a tecla pressionada é numérica */
-     if (key >= '0' && key <= '9') {
-          /* Verifica o índice do operando para modificar a variável correspondente */
-          if (indice_operando == 0) {
-               if(operando01 == 0) {
-                    clearTerminal();
-               }
-               /* Coloque o numero pressionado na tela */
-               putCh(key);
+void debug(void) {
+     putString("Operando 01: ", 14);
+     int temp1 = operando01;
+     if (operando01 < 0) {
+          temp1 *= -1;
+          putCh('-');
+     }
+     buffer_size = intToString(temp1, buffer, 20);
+     putString(buffer, buffer_size);
+     putString("\n\r", 3);
 
-               /* Obtem o valor numerico da tecla */
+     putString("Operando 02: ", 14);
+     int temp2 = operando02;
+     if (operando02 < 0) {
+          temp2 *= -1;
+          putCh('-');
+     }
+     buffer_size = intToString(temp2, buffer, 20);
+     putString(buffer, buffer_size);
+     putString("\n\r", 3);
+
+     putString("Resultado: ", 12);
+     int tempr = resultado;
+     if (resultado < 0) {
+          tempr *= -1;
+          putCh('-');
+     }
+     buffer_size = intToString(tempr, buffer, 20);
+     putString(buffer, buffer_size);
+     putString("\n\r", 3);
+}
+
+void calculationProcedure(char key) {
+     if (key >= '0' && key <= '9') {
+          if (indice_operando == 0) {
+               if(operando01 == 0) {   
+                    lcdSetCursor(lcd, 0, 0);
+                    lcdClearDisplay(lcd);
+               }
+               lcdWriteChar(lcd, key);
+
                key -= '0';
 
-               /* Concatena o valor anterior com a tecla escolhida */
-               long temp = operando01 * 10 + key;
-               if(temp < 2147483648) {
-                    operando01 = temp;
-               }
-               else {
-                    putString("Nao e possivel inserir numeros muito grandes!", 47);
-               }
+               operando01 = operando01 * 10 + key;
           }
           else if (indice_operando == 1) {
-               putCh(key);
+               lcdWriteChar(lcd, key);
                key -= '0';
-               long temp = operando02 * 10 + key;
-               if(temp < 2147483648) {
-                    operando02 = temp;
-               }
-               else {
-                    putString("Nao e possivel inserir numeros muito grandes!", 47);
-               }
+               operando02 = operando02 * 10 + key;
           }
 
           /* Tecla de Igual (#) foi pressionada anteriormente, resetar o procedimento. */
           else {
-               /* Limpa o terminal para inserir os novos valores iniciais */
-               clearTerminal();
+               lcdSetCursor(lcd, 0, 0);
+               lcdClearDisplay(lcd);
 
-               /* Inicia a tela com a tecla pressionada */
-               putCh(key);
+               lcdWriteChar(lcd, key);
 
-               /* Reseta o indice do operando */
                indice_operando = 0;
 
-               /* Limpa a operação atual */
                operacao = ' ';
 
                /* Obtém o primeiro operando como a tecla pressionada */
                operando01 = key - '0';
                operando02 = 0;
           }
+
      }
 
      /* Verifica se a Tecla Pressionada é o Botão Vermelho */
      else if (key == 'C') {
-          /* Irá limpar tudo, inclusive o terminal */
-          clearTerminal();
+          lcdSetCursor(lcd, 0, 0);
+          lcdClearDisplay(lcd);
 
-          /* Reseta as variáveis */
           operando01 = 0;
           operando02 = 0;
           indice_operando = 0;
           operacao = ' ';
           resultado = 0;
 
-          /* Coloca zero no terminal para indicar que o sistema foi "limpo" */
-          putCh('0');
+          lcdWriteChar(lcd, '0');
      }
 
      /* Verifica se a Tecla Pressionada é a tecla 'A' (DELETE) */
      else if (key == 'D') {
-
-          /* Limpa o terminal para reconstruírmos o estado anterior à entrada atual */
-          clearTerminal();
+          lcdSetCursor(lcd, 0, 0);
+          lcdClearDisplay(lcd);
           
           /* Se o botão foi pressionado durante a inserção do segundo operando */
-          if (indice_operando == 1) {
-               /* Reseta o valor do segundo operando */
+          if (indice_operando == 1 && operando02 != 0) { 
                operando02 = 0;
+               int valor_impresso = operando01;
+               if (operando01 < 0) {
+                    valor_impresso *= -1;
+                    lcdWriteChar(lcd, '-');
+               }
 
-               /* Transforma o operando 1 em uma string, salvando-a em buffer */
-               buffer_size = intToString(operando01, buffer, 20);
-
-               /* Imprime o operando 01 */  
-               putString(buffer, buffer_size); 
-
-               /* Imprime a operação */
-               putCh(operacao);     
-
-               /* Retorna o índice do operando para o anterior */
-               indice_operando--;
+               buffer_size = intToString(valor_impresso, buffer, 20);
+               lcdWriteString(lcd, buffer);
+               lcdWriteChar(lcd, operacao);   
           }
           
           /* Se o botão foi pressionado durante a escolha da operação */
-          else if (operacao != ' ' && operando02 == 0) {
-               /* Reseta a escolha de operação */
+          else if (operacao != ' ' && operando02 == 0) { 
                operacao = ' ';
-
-               /* Transforma o operando 01 dm string e salva em buffer */
-               buffer_size = intToString(operando01, buffer, 20);
-
-               /* Imprime o operando 01 */
-               putString(buffer, buffer_size);
+               int valor_impresso = operando01;
+               if (resultado < 0) {
+                    valor_impresso *= -1;
+                    lcdWriteChar(lcd, '-');
+               }
+               buffer_size = intToString(valor_impresso, buffer, 20);
+               lcdWriteString(lcd, buffer);
           }
           
           /* Se o botão foi pressionado durante a inserção do primeiro operando */
           else if (indice_operando == 0) {
-               /* Reseta o valor do operando 01 */
                operando01 = 0;
-
-               /* Reseta a operação */
                operacao = ' ';
-
-               /* Mostra Zero no display */
-               putCh('0');
+               lcdWriteChar(lcd, '0'); 
           }
-          // No resultado:
+
+          /* No resultado: */
           else if(indice_operando == 2) {
                operando01 = 0;
                operando02 = 0;
+               resultado = 0;
                operacao = ' ';
-               putCh('0');
+               lcdWriteChar(lcd, '0'); 
           }
      }
 
-     /* Verifica se a tecla igual foi pressionada durante a operação de soma */
      else if (key == '=' && operacao == '+') {
           /* Incrementa o operando para indicar "resultado" */
           indice_operando++;
 
-          /* Limpa o identificador de operação */
           operacao = ' ';
+          
+          if(operando02 == 0) {
+               lcdWriteChar(lcd, '0');
+          }
 
-          /* Realiza a operação entre os operandos e salva em resultado */
+          lcdWriteChar(lcd, '=');
+
           resultado = operando01 + operando02;
           
-          /* Imprime o resultado no ter
-               putCh('0');minal */
-          putString("\r\nANS=", 7);
-          buffer_size = intToString(resultado, buffer, 20);
-          putString(buffer, buffer_size);
+          int valor_impresso = resultado;
+          if (resultado < 0) {
+               valor_impresso *= -1;
+               lcdWriteChar(lcd, '-');
+          }
+          buffer_size = intToString(valor_impresso, buffer, 20);
+          lcdWriteString(lcd, buffer);
      }
 
-     /* Verifica se a tecla igual foi pressionada durante a operação de subtração */
      else if (key == '=' && operacao == '-') {
           indice_operando++;
           operacao = ' ';
-          resultado = operando01 - operando02;
-          putString("\r\nANS=", 7);
-
-          /* Cria uma variável temporária para tratar do caso negativo */
-          int valor_impresso = resultado;
-          if (operando01 < operando02) {
-               valor_impresso *= -1;
-               putCh('-');
+          
+          if(operando02 == 0) {
+               lcdWriteChar(lcd, '0');
           }
 
-          /* Imprime no terminal */
+          lcdWriteChar(lcd, '=');
+
+          resultado = operando01 - operando02;
+
+          int valor_impresso = resultado;
+          if (resultado < 0) {
+               valor_impresso *= -1;
+               lcdWriteChar(lcd, '-');
+          }
           buffer_size = intToString(valor_impresso, buffer, 20);
-          putString(buffer, buffer_size);
+          lcdWriteString(lcd, buffer);
      }
 
-     /* Verifica se a tecla igual foi pressionada durante a operação de multiplicação */
      else if (key == '=' && operacao == '*') {
           indice_operando++;
           operacao = ' ';
+
+          if(operando02 == 0) {
+               lcdWriteChar(lcd, '0');
+          }
+
+          lcdWriteChar(lcd, '=');
+
           resultado = operando01 * operando02;
-          putString("\r\nANS=", 7);
-          buffer_size = intToString(resultado, buffer, 20);
-          putString(buffer, buffer_size);
+
+          int valor_impresso = resultado;
+          if (resultado < 0) {
+               valor_impresso *= -1;
+               lcdWriteChar(lcd, '-');
+          }
+
+          buffer_size = intToString(valor_impresso, buffer, 20);
+          lcdWriteString(lcd, buffer);
      }
 
-     /* Verifica se a tecla igual foi pressionada durante a operação de divisão */
      else if (key == '=' && operacao == '/') {
-
+          
      }
 
      /* Verifica se uma tecla de operação foi pressionada durante a inscerção do primeiro operando */
      else if ((key == '+' || key == '-' || key == '*' || key == '/') && (indice_operando == 0)) {
-          /* O próximo operando será manejado */
+          
           indice_operando++;
 
-          /* A operação a ser realizada foi digitada */
           operacao = key;
 
-          /* Imprime o simbolo da operação */
-          putCh(operacao);
+          lcdWriteChar(lcd, operacao);
      }
 
      /* Verifica se uma tecla de operação foi pressionada após obter um resultado */
      else if ((key == '+' || key == '-' || key == '*' || key == '/') && (operacao == ' ')) {
-          clearTerminal();
+          lcdSetCursor(lcd, 0, 0);
+          lcdClearDisplay(lcd);
 
-          /* Próxima entrada será o segundo operando */
           indice_operando = 1;
           
-          /* O primeiro operando será o resultado obtido anteriormente */
           operando01 = resultado;
 
-          /* Nova operação a ser realizada com o resultado obtido */
           operacao = key;
 
-          /* Operando 02 vai ser preenchido pelo usuário */
           operando02 = 0;
 
-          /* Imprime o operando 01 e a operação */
-          buffer_size = intToString(operando01, buffer, 20);
-          putString(buffer, buffer_size);
-          putCh(operacao);
+          int valor_impresso = operando01;
+          if (operando01 < 0) {
+               valor_impresso *= -1;
+               lcdWriteChar(lcd, '-');
+          }
+
+          buffer_size = intToString(valor_impresso, buffer, 20);
+          lcdWriteString(lcd, buffer);
+          lcdWriteChar(lcd, operacao);
      }
 }
 

@@ -77,6 +77,8 @@ void drvComponentInit(void) {
      sysModulesInit();
      drvButtonInit();
      drvKeyboardInit();
+     drvLcdInit();
+     lcdWriteString(&lcd, "CALVO!");
 }
 
 char drvReadPressedKey() {
@@ -109,7 +111,7 @@ void irqHandlerGpio1A(void) {
 	}
 
      /* Software Debouncing */
-     delay_ms(50);
+     delay_ms(60);
 }
 
 void irqHandlerGpio1B(void) {
