@@ -9,8 +9,6 @@
 #include "interrupt.h"
 #include "drivers.h"
 
-#define LCD_DISPLAY
-
 // =============================================================================
 // PRIVATE GLOBAL CONTROL VARIABLES
 // =============================================================================
@@ -38,8 +36,11 @@ int main(void){
      IntMasterIRQEnable();
 
      lcd = drvGetLcdHandler();
+
      lcdClearDisplay(lcd);
      lcdSetCursor(lcd, 0, 0);
+
+     
      lcdWriteChar(lcd, '0');
 
      char key;
