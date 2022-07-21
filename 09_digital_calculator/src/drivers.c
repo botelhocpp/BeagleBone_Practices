@@ -78,7 +78,6 @@ void drvComponentInit(void) {
      drvButtonInit();
      drvKeyboardInit();
      drvLcdInit();
-     lcdWriteString(&lcd, "CALVO!");
 }
 
 char drvReadPressedKey() {
