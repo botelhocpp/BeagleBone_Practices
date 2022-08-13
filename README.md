@@ -1,5 +1,5 @@
 # Practices in BeagleBone Black 🤖👨‍💻
-## Source code made for the "TPSE I" course, a basic Embedded System course.
+## Source code made for the "TPSE" course, a basic Embedded System course.
 
 <p align="center">
  <a href="#about">About</a> •
